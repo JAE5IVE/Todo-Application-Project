@@ -27,16 +27,23 @@ import { Todo, Category } from './types';
 const DUMMY_USER = {
   id: 'user_123',
   name: 'Joseph Tuta',
-  email: 'josephtuta20@gmail.com',
+  email: 'demo@example.com', // Updated to placeholder for privacy
   avatar: 'JT'
 };
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => {
-    const saved = localStorage.getItem('todoflow_tasks');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('todoflow_tasks');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      return [];
+    }
   });
-  
+
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [notifications, setNotifications] = useState<{id: number, msg: string}[]>([]);
@@ -44,6 +51,20 @@ export default function App() {
   const [currentFilter, setCurrentFilter] = useState<Category | 'all'>('all');
   const [showNewTaskForm, setShowNewTaskForm] = useState(false);
   const [newTask, setNewTask] = useState({ text: '', category: 'work' as Category });
+
+  // Escape key handler for modal
+  useEffect(() => {
+    if (!showNewTaskForm) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowNewTaskForm(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showNewTaskForm]);
 
   // Persistence
   useEffect(() => {
@@ -82,19 +103,19 @@ export default function App() {
       createdAt: Date.now()
     };
 
-    setTodos([todo, ...todos]);
+    setTodos(prev => [todo, ...prev]);
     setNewTask({ text: '', category: 'work' });
     setShowNewTaskForm(false);
     addNotification('Task added successfully');
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
     addNotification('Task status updated');
   };
 
   const deleteTodo = (id: string) => {
-    setTodos(todos.filter(t => t.id !== id));
+    setTodos(prev => prev.filter(t => t.id !== id));
     addNotification('Task removed');
   };
 
@@ -168,6 +189,7 @@ export default function App() {
               </div>
               <button 
                 onClick={() => setIsLoggedIn(false)}
+                aria-label="Sign out"
                 className="w-10 h-10 rounded-2xl bg-neutral-900 flex items-center justify-center text-white border-4 border-white shadow-xl hover:scale-105 transition-transform"
               >
                 <User size={18} />
@@ -258,6 +280,7 @@ export default function App() {
                 <div className="flex items-start gap-4">
                   <button 
                     onClick={() => toggleTodo(todo.id)}
+                    aria-label={todo.completed ? "Mark as incomplete" : "Mark as complete"}
                     className={cn(
                       "mt-1 w-6 h-6 rounded-lg flex items-center justify-center transition-all border-2",
                       todo.completed ? "bg-black border-black text-white" : "bg-white border-neutral-200 hover:border-black"
@@ -286,6 +309,7 @@ export default function App() {
 
                   <button 
                     onClick={() => deleteTodo(todo.id)}
+                    aria-label="Delete task"
                     className="p-3 bg-red-50 text-red-500 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
                   >
                     <Trash2 size={16} />
@@ -299,12 +323,17 @@ export default function App() {
 
       {/* New Task Overlay */}
       {showNewTaskForm && (
-        <div className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-lg bg-white rounded-[40px] p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-300">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-black italic uppercase tracking-tighter">New Task</h3>
               <button 
                 onClick={() => setShowNewTaskForm(false)}
+                aria-label="Close modal"
                 className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
               >
                 <X size={20} />
